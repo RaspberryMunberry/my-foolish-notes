@@ -10,6 +10,10 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 import torch.nn as nn
 import torch.optim as optim
+import tensorflow as tf
+from sklearn.metrics import mean_squared_error, r2_score
+import matplotlib.pyplot as plt
+import numpy as np
 
 path = kagglehub.dataset_download("vikrishnan/boston-house-prices")
 data_path = '/root/.cache/kagglehub/datasets/vikrishnan/boston-house-prices/versions/1/housing.csv'
@@ -39,7 +43,7 @@ keras_neuron = Sequential()
 keras_neuron.add(Dense(1, input_dim=x_train.shape[1], activation='linear'))
 
 # компилируем модель
-keras_neuron.compile(optimizer='adam', loss='mean_squared_error')
+keras_neuron.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), loss='mean_squared_error')
 
 # нейрон на торче
 
@@ -70,10 +74,6 @@ for epoch in range(epochs):
     loss = criterion(outputs, y_train_tensor)  # Считаем ошибку
     loss.backward()  # Вычисляем градиенты
     optimizer.step()  # Обновляем веса
-    
-    if (epoch+1) % 10 == 0:
-        print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
-
 
 
 # Keras: Предсказания на тестовых данных
@@ -86,3 +86,72 @@ y_pred_pytorch = torch_neuron(x_test_tensor).detach().numpy()
 # Выводим результаты для сравнения
 print(f"Keras predictions: {y_pred_keras[:5].flatten()}")
 print(f"PyTorch predictions: {y_pred_pytorch[:5].flatten()}")
+
+# Предсказания Keras на тестовых данных
+y_pred_keras = keras_neuron.predict(x_test)
+
+# Вычисляем MSE и R^2 для Keras
+mse_keras = mean_squared_error(y_test, y_pred_keras)
+r2_keras = r2_score(y_test, y_pred_keras)
+
+print(f"Keras - Mean Squared Error: {mse_keras}")
+print(f"Keras - R² Score: {r2_keras}")
+
+# Предсказания PyTorch на тестовых данных
+y_pred_pytorch = torch_neuron(x_test_tensor).detach().numpy()
+
+# Вычисляем MSE и R^2 для PyTorch
+mse_pytorch = mean_squared_error(y_test, y_pred_pytorch)
+r2_pytorch = r2_score(y_test, y_pred_pytorch)
+
+print(f"PyTorch - Mean Squared Error: {mse_pytorch}")
+print(f"PyTorch - R² Score: {r2_pytorch}")
+
+# Фактические значения для тестовой выборки
+y_test_np = y_test.values
+
+# График "Фактические vs Предсказанные значения"
+plt.figure(figsize=(14, 6))
+
+# График для Keras
+plt.subplot(1, 2, 1)
+plt.scatter(y_test_np, y_pred_keras.flatten(), color='blue')
+plt.plot([min(y_test_np), max(y_test_np)], [min(y_test_np), max(y_test_np)], 'k--', lw=2)
+plt.title('Keras: Actual vs Predicted')
+plt.xlabel('Actual Prices')
+plt.ylabel('Predicted Prices')
+
+# График для PyTorch
+plt.subplot(1, 2, 2)
+plt.scatter(y_test_np, y_pred_pytorch.flatten(), color='red')
+plt.plot([min(y_test_np), max(y_test_np)], [min(y_test_np), max(y_test_np)], 'k--', lw=2)
+plt.title('PyTorch: Actual vs Predicted')
+plt.xlabel('Actual Prices')
+plt.ylabel('Predicted Prices')
+
+plt.tight_layout()
+plt.show()
+
+# График остатков (Residual Plot)
+plt.figure(figsize=(14, 6))
+
+# Остатки для Keras
+residuals_keras = y_test_np - y_pred_keras.flatten()
+plt.subplot(1, 2, 1)
+plt.scatter(y_pred_keras.flatten(), residuals_keras, color='blue')
+plt.hlines(y=0, xmin=min(y_pred_keras.flatten()), xmax=max(y_pred_keras.flatten()), colors='k', lw=2)
+plt.title('Keras: Residuals')
+plt.xlabel('Predicted Prices')
+plt.ylabel('Residuals')
+
+# Остатки для PyTorch
+residuals_pytorch = y_test_np - y_pred_pytorch.flatten()
+plt.subplot(1, 2, 2)
+plt.scatter(y_pred_pytorch.flatten(), residuals_pytorch, color='red')
+plt.hlines(y=0, xmin=min(y_pred_pytorch.flatten()), xmax=max(y_pred_pytorch.flatten()), colors='k', lw=2)
+plt.title('PyTorch: Residuals')
+plt.xlabel('Predicted Prices')
+plt.ylabel('Residuals')
+
+plt.tight_layout()
+plt.show()
